@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InfinityBet | Clicker & PvP</title>
+    <title>BGSI Infinity | Clicker & PvP</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         :root { --bg: #090909; --card: #121212; --accent: #00ff88; --owner: #ff00ff; --border: #222; --text: #ffffff; }
@@ -23,24 +23,30 @@
         .btn-main { background: var(--accent); color: #000; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.2s; }
         .btn-main:hover { opacity: 0.8; transform: translateY(-1px); }
         input, select { width: 100%; padding: 12px; background: #000; border: 1px solid var(--border); color: #fff; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box; outline: none; }
-        input:focus { border-color: var(--accent); }
+        
+        /* Status Indicator */
+        #status-container { position: fixed; bottom: 15px; right: 315px; display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); font-size: 11px; z-index: 1000; }
+        #status-light { width: 8px; height: 8px; border-radius: 50%; background: #ff4444; box-shadow: 0 0 8px #ff4444; transition: 0.3s; }
+        #status-light.online { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 
         /* Chat */
         #chat-msgs { flex: 1; overflow-y: auto; padding: 15px; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
         .msg { background: #181818; padding: 10px; border-radius: 8px; line-height: 1.4; word-wrap: break-word; }
         .msg-owner { border-left: 3px solid var(--owner); color: var(--owner); }
         
-        /* Specific Components */
         .hidden { display: none !important; }
         #click-circle { width: 160px; height: 160px; background: radial-gradient(circle, var(--accent) 0%, #000 100%); border-radius: 50%; margin: 30px auto; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 50px; border: 4px solid #1a1a1a; transition: 0.1s; user-select: none; }
         #click-circle:active { transform: scale(0.92); }
-        
         #game-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: none; align-items: center; justify-content: center; flex-direction: column; }
-        
         .flip-card { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body>
+
+    <div id="status-container">
+        <div id="status-light"></div>
+        <span id="status-text">Server Offline</span>
+    </div>
 
     <div id="game-overlay">
         <h2 id="anim-winner" style="color:var(--accent); font-size: 2rem;">FLIPPING...</h2>
@@ -77,14 +83,12 @@
                         <h1 id="wagered-text" style="margin: 5px 0 0 0; font-size: 2.5rem;">0</h1>
                     </div>
                 </div>
-
                 <h2 style="text-align:center; margin-bottom: 10px;">🏆 Top 3 Wagerers</h2>
                 <div id="podium" style="display:flex; justify-content:center; align-items:flex-end; gap:15px; height:200px; padding-bottom: 20px; border-bottom: 1px solid var(--border);"></div>
             </div>
 
             <div id="tab-clicker" class="hidden" style="text-align:center; padding-top: 50px;">
                 <h1 style="margin:0;">Gem Clicker</h1>
-                <p style="color: #666;">Level up by wagering to earn more per click!</p>
                 <div id="click-circle" onclick="window.handleGemClick()">💎</div>
                 <h3 id="click-val" style="color:var(--accent); font-size: 1.5rem;">+1 per click</h3>
             </div>
@@ -93,12 +97,9 @@
                 <div style="background:var(--card); padding:25px; border-radius:15px; border:1px solid var(--border); margin-bottom:30px;">
                     <h3 style="margin-top:0;">Create a Coinflip</h3>
                     <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap: 10px;">
-                        <input type="number" id="bet-amt" placeholder="Amount of Gems">
-                        <select id="bet-side">
-                            <option value="Heads">Heads</option>
-                            <option value="Tails">Tails</option>
-                        </select>
-                        <button class="btn-main" style="padding: 0 30px;" onclick="window.createFlip()">HOST</button>
+                        <input type="number" id="bet-amt" placeholder="Amount">
+                        <select id="bet-side"><option value="Heads">Heads</option><option value="Tails">Tails</option></select>
+                        <button class="btn-main" onclick="window.createFlip()">HOST</button>
                     </div>
                 </div>
                 <h3>Active Games</h3>
@@ -107,18 +108,12 @@
 
             <div id="tab-admin" class="hidden">
                 <h1 style="color: var(--owner);">Owner Controls</h1>
-                <div style="background:var(--card); padding:20px; border-radius:12px; border:1px solid var(--owner); margin-bottom:20px;">
-                    <h3>Give Gems</h3>
-                    <input type="text" id="admin-target" placeholder="User ID">
-                    <input type="number" id="admin-qty" placeholder="Amount">
-                    <button class="btn-main" onclick="window.adminGive()">UPDATE BALANCE</button>
-                </div>
-                
-                <div style="background:var(--card); padding:20px; border-radius:12px; border:1px solid var(--owner);">
-                    <h3>Global Announcement</h3>
-                    <input type="text" id="admin-ann" placeholder="Message to everyone...">
-                    <button class="btn-main" style="background:var(--owner); color:#fff;" onclick="window.adminAnnounce()">SEND ANNOUNCEMENT</button>
-                </div>
+                <input type="text" id="admin-target" placeholder="User ID">
+                <input type="number" id="admin-qty" placeholder="Amount">
+                <button class="btn-main" onclick="window.adminGive()">UPDATE BALANCE</button>
+                <h3 style="margin-top:30px;">Global Announcement</h3>
+                <input type="text" id="admin-ann" placeholder="Message...">
+                <button class="btn-main" style="background:var(--owner); color:#fff;" onclick="window.adminAnnounce()">SEND</button>
             </div>
         </div>
 
@@ -126,36 +121,42 @@
             <div style="padding: 15px; border-bottom: 1px solid var(--border); font-weight: bold; font-size: 14px;">Global Chat</div>
             <div id="chat-msgs"></div>
             <div style="padding: 15px; background: #0e0e0e;">
-                <input type="text" id="chat-in" placeholder="Say something..." style="margin:0;" onkeypress="if(event.key==='Enter') window.sendChat()">
+                <input type="text" id="chat-in" placeholder="Say something..." onkeypress="if(event.key==='Enter') window.sendChat()">
             </div>
         </div>
     </div>
 
     <div id="auth-overlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:99999; display:flex; align-items:center; justify-content:center;">
         <div style="background:var(--card); padding:40px; border-radius:20px; width:340px; text-align:center; border: 1px solid var(--border);">
-            <h2 style="margin-top:0;">Welcome to BGSI</h2>
-            <p style="color:#777; font-size: 14px; margin-bottom: 25px;">Enter your details to play</p>
+            <h2>Login</h2>
             <div id="auth-step-1">
-                <input type="text" id="login-user" placeholder="Roblox Username">
-                <input type="text" id="login-id" placeholder="Roblox User ID">
+                <input type="text" id="login-user" placeholder="Username">
+                <input type="text" id="login-id" placeholder="User ID">
                 <button class="btn-main" onclick="window.startAuth()">CONTINUE</button>
             </div>
             <div id="auth-step-2" class="hidden">
-                <p style="font-size: 13px;">Please add this code to your Roblox Bio:</p>
-                <div id="auth-code" style="color:var(--accent); font-size:28px; font-weight:900; margin:20px 0; background:#000; padding:10px; border-radius:10px;"></div>
-                <button class="btn-main" onclick="window.verifyAuth()">I'VE ADDED IT</button>
-                <p style="font-size: 11px; color:#555; margin-top:15px;" onclick="location.reload()">Back to login</p>
+                <p>Bio Code:</p>
+                <div id="auth-code" style="color:var(--accent); font-size:28px; font-weight:900; margin:20px 0;"></div>
+                <button class="btn-main" onclick="window.verifyAuth()">VERIFY</button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- CONFIGURATION ---
-        const socket = io("https://bgsi-infinity.onrender.com"); // ENSURE THIS IS YOUR RENDER URL
+        const socket = io("https://bgsi-infinity.onrender.com");
         const OWNER_ID = "7957630713"; 
-        
         let me = JSON.parse(localStorage.getItem('user_session')) || null;
         let authTemp = {};
+
+        // --- SERVER STATUS LOGIC ---
+        socket.on('connect', () => {
+            document.getElementById('status-light').className = 'online';
+            document.getElementById('status-text').innerText = 'Server Online';
+        });
+        socket.on('disconnect', () => {
+            document.getElementById('status-light').className = '';
+            document.getElementById('status-text').innerText = 'Server Offline';
+        });
 
         function showTab(t) {
             document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
@@ -164,13 +165,8 @@
             if(document.getElementById('btn-'+t)) document.getElementById('btn-'+t).classList.add('active');
         }
 
-        // --- AUTHENTICATION ---
         window.startAuth = () => {
-            const user = document.getElementById('login-user').value;
-            const id = document.getElementById('login-id').value;
-            if(!user || !id) return alert("Missing fields!");
-            
-            authTemp = { username: user, userId: id, code: "BGS-"+Math.floor(Math.random()*9999) };
+            authTemp = { username: document.getElementById('login-user').value, userId: document.getElementById('login-id').value, code: "BGS-"+Math.floor(Math.random()*9999) };
             document.getElementById('auth-code').innerText = authTemp.code;
             document.getElementById('auth-step-1').classList.add('hidden');
             document.getElementById('auth-step-2').classList.remove('hidden');
@@ -178,173 +174,30 @@
 
         window.verifyAuth = async () => {
             try {
-                const res = await fetch("/api/verify-bio", { 
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify({...authTemp, expectedCode: authTemp.code}) 
-                });
+                const res = await fetch("/api/verify-bio", { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({...authTemp, expectedCode: authTemp.code}) });
                 const d = await res.json();
                 if(d.success) {
-                    const pfpRes = await fetch("/api/roblox-pfp/"+authTemp.userId);
-                    const pfpData = await pfpRes.json();
-                    me = { ...d.data, userId: authTemp.userId, pfp: pfpData.pfpUrl };
+                    const pfp = await fetch("/api/roblox-pfp/"+authTemp.userId).then(r=>r.json());
+                    me = { ...d.data, userId: authTemp.userId, pfp: pfp.pfpUrl };
                     localStorage.setItem('user_session', JSON.stringify(me));
                     location.reload();
-                } else {
-                    alert(d.message);
-                }
-            } catch(e) { alert("Server error. Try again."); }
+                } else alert(d.message);
+            } catch(e) { alert("Server error. Check the status light!"); }
         };
 
-        // --- LEADERBOARD ---
-        async function loadLeaderboard() {
-            try {
-                const res = await fetch("/api/leaderboard");
-                const top = await res.json();
-                if(!top || top.length === 0) return;
-                
-                // Sort visually: 2nd, 1st, 3rd
-                const order = [top[1], top[0], top[2]].filter(p => p);
-                const colors = ["#c0c0c0", "#ffd700", "#cd7f32"];
-                
-                document.getElementById('podium').innerHTML = order.map((p, i) => {
-                    const h = p.rank === 1 ? '140px' : p.rank === 2 ? '100px' : '80px';
-                    return `
-                    <div style="text-align:center; width: 80px;">
-                        <div style="font-size:11px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.username}</div>
-                        <div style="background:${colors[p.rank-1]}; height:${h}; border-radius:10px 10px 0 0; color:#000; font-weight:bold; display:flex; flex-direction:column; justify-content:center; align-items:center; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-                            <span style="font-size: 1.5rem;">#${p.rank}</span>
-                            <span style="font-size:10px; opacity: 0.7;">${p.wagered}</span>
-                        </div>
-                    </div>`;
-                }).join('');
-            } catch(e) {}
-        }
+        window.handleGemClick = () => socket.emit('gem_click', { userId: me.userId });
+        window.createFlip = () => socket.emit('create_flip', { userId: me.userId, username: me.username, pfp: me.pfp, amount: parseInt(document.getElementById('bet-amt').value), side: document.getElementById('bet-side').value });
+        window.sendChat = () => { socket.emit('send_message', { userId: me.userId, username: me.username, text: document.getElementById('chat-in').value }); document.getElementById('chat-in').value = ''; };
 
-        // --- GAME ACTIONS ---
-        window.handleGemClick = () => {
-            socket.emit('gem_click', { userId: me.userId });
-        };
+        socket.on('update_balance', d => { if(me && d.userId === me.userId) { me.balance = d.newBalance; me.wagered = d.wagered; document.getElementById('bal-text').innerText = d.newBalance.toLocaleString(); document.getElementById('wagered-text').innerText = d.wagered.toLocaleString(); } });
+        socket.on('list_flips', flips => { document.getElementById('flip-list').innerHTML = flips.map(g => `<div class="flip-card"><span>${g.creator.username}: ${g.creator.amount}</span> ${g.creator.userId === me.userId ? `<button onclick="socket.emit('cancel_flip', ${g.id})">CANCEL</button>` : `<button onclick="socket.emit('join_flip', {gameId:${g.id}, userId:'${me.userId}'})">JOIN</button>`}</div>`).join(''); });
 
-        window.createFlip = () => {
-            const amt = parseInt(document.getElementById('bet-amt').value);
-            if(!amt || amt < 10) return alert("Minimum bet is 10 Gems!");
-            if(amt > me.balance) return alert("Not enough Gems!");
-            
-            socket.emit('create_flip', { 
-                userId: me.userId, 
-                username: me.username, 
-                pfp: me.pfp, 
-                amount: amt, 
-                side: document.getElementById('bet-side').value 
-            });
-            document.getElementById('bet-amt').value = '';
-        };
-
-        window.sendChat = () => {
-            const input = document.getElementById('chat-in');
-            if(!input.value.trim()) return;
-            socket.emit('send_message', { userId: me.userId, username: me.username, text: input.value });
-            input.value = '';
-        };
-
-        // --- ADMIN ACTIONS ---
-        window.adminGive = async () => {
-            const res = await fetch("/api/admin/give", { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ 
-                    adminId: me.userId, 
-                    targetId: document.getElementById('admin-target').value, 
-                    amount: document.getElementById('admin-qty').value 
-                }) 
-            });
-            if(res.ok) alert("Balance updated successfully!");
-        };
-
-        window.adminAnnounce = async () => {
-            await fetch("/api/admin/announce", { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ 
-                    adminId: me.userId, 
-                    message: document.getElementById('admin-ann').value 
-                }) 
-            });
-            document.getElementById('admin-ann').value = '';
-        };
-
-        // --- SOCKET LISTENERS ---
-        socket.on('update_balance', d => {
-            if(me && d.userId === me.userId) {
-                me.balance = d.newBalance;
-                me.wagered = d.wagered;
-                document.getElementById('bal-text').innerText = d.newBalance.toLocaleString();
-                document.getElementById('wagered-text').innerText = d.wagered.toLocaleString();
-                document.getElementById('lvl-display').innerText = Math.floor(Math.sqrt(me.wagered/100))+1;
-                document.getElementById('click-val').innerText = `+${Math.floor(Math.sqrt(me.wagered/100))+1} per click`;
-            }
-        });
-
-        socket.on('new_message', m => {
-            const d = document.createElement('div');
-            d.className = 'msg ' + (m.role === 'OWNER' ? 'msg-owner' : '');
-            d.innerHTML = `<b>${m.username}:</b> ${m.text}`;
-            const container = document.getElementById('chat-msgs');
-            container.appendChild(d);
-            container.scrollTop = container.scrollHeight;
-        });
-
-        socket.on('list_flips', flips => {
-            document.getElementById('flip-list').innerHTML = flips.map(g => `
-                <div class="flip-card">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <img src="${g.creator.pfp}" style="width:40px; border-radius:50%; border: 1px solid var(--border);">
-                        <div>
-                            <div style="font-weight:bold;">${g.creator.username}</div>
-                            <div style="font-size:12px; color:var(--accent);">${g.creator.amount} Gems • ${g.creator.side}</div>
-                        </div>
-                    </div>
-                    ${g.creator.userId === me.userId ? 
-                        `<button class="btn-main" style="width:auto; background:#ff4444; color:#fff; padding: 8px 15px;" onclick="socket.emit('cancel_flip', ${g.id})">CANCEL</button>` : 
-                        `<button class="btn-main" style="width:auto; padding: 8px 25px;" onclick="socket.emit('join_flip', {gameId:${g.id}, userId:'${me.userId}'})">JOIN</button>`
-                    }
-                </div>
-            `).join('');
-        });
-
-        socket.on('flip_results', d => {
-            const overlay = document.getElementById('game-overlay');
-            const status = document.getElementById('anim-winner');
-            overlay.style.display = 'flex';
-            status.innerText = "FLIPPING...";
-            
-            setTimeout(() => {
-                status.innerText = `${d.winnerName} WON! (${d.resultSide})`;
-                setTimeout(() => { 
-                    overlay.style.display = 'none'; 
-                    loadLeaderboard();
-                }, 3000);
-            }, 2000);
-        });
-
-        // --- INIT ---
         if(me) {
             document.getElementById('auth-overlay').classList.add('hidden');
             document.getElementById('nav-user').innerText = me.username;
             document.getElementById('nav-pfp').src = me.pfp;
-            document.getElementById('bal-text').innerText = me.balance.toLocaleString();
-            document.getElementById('wagered-text').innerText = me.wagered.toLocaleString();
-            
-            // Check Admin Status
-            if(me.userId === OWNER_ID) {
-                document.getElementById('nav-admin').classList.remove('hidden');
-            }
-            
+            if(me.userId === OWNER_ID) document.getElementById('nav-admin').classList.remove('hidden');
             socket.emit('join', me.userId);
-            loadLeaderboard();
-            // Refresh LB every 60s
-            setInterval(loadLeaderboard, 60000);
         }
     </script>
 </body>
