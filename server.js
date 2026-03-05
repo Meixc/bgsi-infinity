@@ -33,13 +33,6 @@ let activeFlips = [];
 const clickCooldowns = {};
 
 // --- API ROUTES ---
-app.get('/api/roblox-pfp/:userId', async (req, res) => {
-    try {
-        const response = await axios.get(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${req.params.userId}&size=150x150&format=Png&isCircular=true`);
-        res.json({ pfpUrl: response.data.data[0].imageUrl });
-    } catch (e) { res.status(500).json({ error: "Avatar fetch failed" }); }
-});
-
 app.get('/api/leaderboard', (req, res) => {
     const top3 = Object.values(userDB)
         .sort((a, b) => b.wagered - a.wagered)
@@ -71,6 +64,13 @@ app.post('/api/admin/give', (req, res) => {
     }
 });
 
+app.post('/api/admin/announce', (req, res) => {
+    const { adminId, message } = req.body;
+    if (adminId !== OWNER_ID) return res.status(403).send("No");
+    io.emit('new_message', { username: "SYSTEM", text: `📢 ${message}`, role: "OWNER" });
+    res.json({ success: true });
+});
+
 // --- SOCKET ENGINE ---
 io.on('connection', (socket) => {
     socket.on('join', (userId) => {
@@ -80,9 +80,8 @@ io.on('connection', (socket) => {
 
     socket.on('gem_click', (data) => {
         const uid = data.userId;
-        const now = Date.now();
-        if (clickCooldowns[uid] && (now - clickCooldowns[uid]) < 100) return;
-        clickCooldowns[uid] = now;
+        if (clickCooldowns[uid] && (Date.now() - clickCooldowns[uid]) < 100) return;
+        clickCooldowns[uid] = Date.now();
         if (userDB[uid]) {
             const lvl = Math.floor(Math.sqrt(userDB[uid].wagered / 100)) + 1;
             userDB[uid].balance += lvl;
@@ -102,11 +101,24 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('cancel_flip', (gameId) => {
+        const idx = activeFlips.findIndex(g => g.id === gameId);
+        if (idx > -1 && activeFlips[idx].creator.userId === socket.userId) {
+            userDB[socket.userId].balance += activeFlips[idx].creator.amount;
+            activeFlips.splice(idx, 1);
+            saveDB();
+            io.emit('list_flips', activeFlips);
+            socket.emit('update_balance', { userId: socket.userId, newBalance: userDB[socket.userId].balance, wagered: userDB[socket.userId].wagered });
+        }
+    });
+
     socket.on('join_flip', async (data) => {
         const idx = activeFlips.findIndex(g => g.id === data.gameId);
         const game = activeFlips[idx];
         const joiner = userDB[data.userId];
-        if (game && joiner && joiner.balance >= game.creator.amount) {
+        
+        // CHECK: Cannot join own flip
+        if (game && joiner && game.creator.userId !== data.userId && joiner.balance >= game.creator.amount) {
             joiner.balance -= game.creator.amount;
             const resSide = Math.random() > 0.5 ? 'Heads' : 'Tails';
             const winId = (game.creator.side === resSide) ? game.creator.userId : data.userId;
