@@ -144,7 +144,7 @@
     </div>
 
     <script>
-        const socket = io("http://localhost:3000");
+        const socket = io("https://bgsi-infinity.onrender.com");
         let me = JSON.parse(localStorage.getItem('user_session')) || null;
         let authTemp = {};
 
@@ -287,4 +287,5 @@
         if(me) initSession();
     </script>
 </body>
+
 </html>
