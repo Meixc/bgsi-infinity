@@ -2,271 +2,167 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>BGSI Infinity | Clicker & PvP</title>
+    <title>BGSI Infinity | Clicker & Leaderboard</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         :root { --bg: #090909; --card: #121212; --accent: #00ff88; --owner: #ff00ff; --border: #222; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: #fff; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        header { height: 60px; background: var(--card); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; padding: 0 30px; z-index: 100; }
+        header { height: 60px; background: var(--card); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; padding: 0 30px; }
         .main-layout { display: flex; flex: 1; overflow: hidden; }
-        #sidebar { width: 220px; background: var(--card); border-right: 1px solid var(--border); padding: 20px; flex-shrink: 0; }
+        #sidebar { width: 220px; background: var(--card); border-right: 1px solid var(--border); padding: 20px; }
         #content { flex: 1; padding: 30px; overflow-y: auto; }
         #chat-side { width: 300px; background: var(--card); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
-        .nav-btn { padding: 12px; border-radius: 8px; cursor: pointer; color: #888; margin-bottom: 5px; font-weight: bold; }
+        .nav-btn { padding: 12px; border-radius: 8px; cursor: pointer; color: #888; font-weight: bold; }
         .nav-btn.active { background: #1a1a1a; color: var(--accent); }
         .btn-main { background: var(--accent); color: #000; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; }
-        input, select { width: 100%; padding: 12px; background: #000; border: 1px solid var(--border); color: #fff; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box; }
+        input, select { width: 100%; padding: 12px; background: #000; border: 1px solid var(--border); color: #fff; border-radius: 8px; margin-bottom: 10px; }
+        .hidden { display: none !important; }
         #chat-msgs { flex: 1; overflow-y: auto; padding: 15px; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
         .msg { background: #181818; padding: 8px; border-radius: 8px; }
-        .msg-owner { border-left: 3px solid var(--owner); color: var(--owner); }
-        .hidden { display: none !important; }
-        #click-circle { width: 180px; height: 180px; background: radial-gradient(circle, var(--accent) 0%, #000 100%); border-radius: 50%; margin: 40px auto; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 50px; border: 4px solid #1a1a1a; transition: 0.1s; user-select: none; }
+        .msg-owner { color: var(--owner); border-left: 3px solid var(--owner); }
+        #click-circle { width: 160px; height: 160px; background: radial-gradient(circle, var(--accent) 0%, #000 100%); border-radius: 50%; margin: 30px auto; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 50px; border: 4px solid #1a1a1a; transition: 0.1s; }
         #click-circle:active { transform: scale(0.9); }
         #game-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: none; align-items: center; justify-content: center; flex-direction: column; }
-        .coin-visual { width: 100px; height: 100px; background: #ffd700; border-radius: 50%; border: 6px solid #b8860b; display: flex; align-items: center; justify-content: center; font-size: 40px; color: #000; font-weight: 900; margin: 0 40px; }
-        .spinning { animation: spin 0.1s linear infinite; }
-        @keyframes spin { 0% { transform: rotateY(0deg); } 100% { transform: rotateY(180deg); } }
     </style>
 </head>
 <body>
 
     <div id="game-overlay">
-        <div style="display:flex; align-items:center;">
-            <div style="text-align:center;"><img id="anim-p1" style="width:80px; border-radius:50%;"><p id="anim-n1"></p></div>
-            <div id="coin-obj" class="coin-visual">?</div>
-            <div style="text-align:center;"><img id="anim-p2" style="width:80px; border-radius:50%;"><p id="anim-n2"></p></div>
-        </div>
-        <h2 id="anim-winner" style="color:var(--accent); margin-top:20px;">FLIPPING...</h2>
+        <h2 id="anim-winner" style="color:var(--accent);">FLIPPING...</h2>
     </div>
 
     <header>
         <div style="font-weight:900;">BGSI <span style="color:var(--accent);">INFINITY</span></div>
-        <div onclick="openProfile()" style="cursor:pointer; display:flex; align-items:center; gap:10px;">
+        <div style="display:flex; align-items:center; gap:10px;">
             <span id="nav-user">Guest</span>
-            <img id="nav-pfp" style="width:35px; border-radius:50%; border:2px solid var(--accent); background:#111;">
+            <img id="nav-pfp" style="width:35px; border-radius:50%; background:#111;">
         </div>
     </header>
 
     <div class="main-layout">
         <div id="sidebar">
-            <div class="nav-btn active" id="btn-dash" onclick="showTab('dash')">Dashboard</div>
-            <div class="nav-btn" id="btn-clicker" onclick="showTab('clicker')">Gem Clicker</div>
-            <div class="nav-btn" id="btn-flip" onclick="showTab('flip')">PvP Coinflip</div>
-            <div id="nav-admin" class="nav-btn hidden" style="color:var(--owner);" onclick="showTab('admin')">ADMIN PANEL</div>
+            <div class="nav-btn active" onclick="showTab('dash')">Dashboard</div>
+            <div class="nav-btn" onclick="showTab('clicker')">Gem Clicker</div>
+            <div class="nav-btn" onclick="showTab('flip')">PvP Coinflip</div>
+            <div id="nav-admin" class="nav-btn hidden" style="color:var(--owner);" onclick="showTab('admin')">ADMIN</div>
         </div>
 
         <div id="content">
             <div id="tab-dash">
-                <h1>Gems: <span id="bal-text" style="color:var(--accent);">0</span></h1>
-                <p>Level: <b id="lvl-text">1</b></p>
+                <div style="display:flex; gap:20px;">
+                    <div style="background:var(--card); padding:20px; border-radius:12px; flex:1;">
+                        <p style="color:#888;">Gems Balance</p>
+                        <h1 id="bal-text" style="color:var(--accent);">0</h1>
+                    </div>
+                    <div style="background:var(--card); padding:20px; border-radius:12px; flex:1;">
+                        <p style="color:#888;">Total Wagered</p>
+                        <h1 id="wagered-text">0</h1>
+                    </div>
+                </div>
+
+                <h2 style="margin-top:40px; text-align:center;">🏆 Top Wagerers</h2>
+                <div id="podium" style="display:flex; justify-content:center; align-items:flex-end; gap:15px; height:180px; margin-top:20px;"></div>
             </div>
 
             <div id="tab-clicker" class="hidden" style="text-align:center;">
-                <h1>Gem Clicker</h1>
-                <div id="click-circle" onclick="handleGemClick()">💎</div>
-                <h3 id="click-val" style="color:var(--accent);">+1 per click</h3>
+                <h1>Click to Earn</h1>
+                <div id="click-circle" onclick="window.handleGemClick()">💎</div>
+                <h3 id="click-val">+1 per click</h3>
             </div>
 
             <div id="tab-flip" class="hidden">
-                <div style="background:var(--card); padding:20px; border-radius:15px; border:1px solid var(--border); margin-bottom:20px;">
-                    <h3>Create Flip</h3>
-                    <input type="number" id="bet-amt" placeholder="Amount">
-                    <select id="bet-side"><option>Heads</option><option>Tails</option></select>
-                    <button class="btn-main" onclick="createFlip()">CREATE GAME</button>
-                </div>
-                <div id="flip-list"></div>
+                <input type="number" id="bet-amt" placeholder="Bet Amount">
+                <select id="bet-side"><option>Heads</option><option>Tails</option></select>
+                <button class="btn-main" onclick="window.createFlip()">CREATE FLIP</button>
+                <div id="flip-list" style="margin-top:20px;"></div>
             </div>
 
             <div id="tab-admin" class="hidden">
-                <h1>Owner Admin</h1>
+                <h3>Give Gems</h3>
                 <input type="text" id="admin-target" placeholder="User ID">
                 <input type="number" id="admin-qty" placeholder="Amount">
-                <button class="btn-main" onclick="adminGive()">GIVE GEMS</button>
-                <input type="text" id="admin-ann" placeholder="Message..." style="margin-top:20px;">
-                <button class="btn-main" style="background:var(--owner); color:#fff;" onclick="adminAnnounce()">ANNOUNCE</button>
+                <button class="btn-main" onclick="window.adminGive()">SEND</button>
             </div>
         </div>
 
         <div id="chat-side">
             <div id="chat-msgs"></div>
-            <input type="text" id="chat-in" placeholder="Chat..." style="margin:10px;" onkeypress="if(event.key==='Enter') sendChat()">
+            <input type="text" id="chat-in" placeholder="Type message..." style="margin:10px;" onkeypress="if(event.key==='Enter') window.sendChat()">
         </div>
     </div>
 
     <div id="auth-overlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:99999; display:flex; align-items:center; justify-content:center;">
-        <div style="background:var(--card); padding:30px; border-radius:15px; width:300px; text-align:center; border:1px solid var(--border);">
+        <div style="background:var(--card); padding:30px; border-radius:15px; width:300px; text-align:center;">
             <h2>Login</h2>
             <div id="auth-step-1">
                 <input type="text" id="login-user" placeholder="Username">
                 <input type="text" id="login-id" placeholder="User ID">
-                <button class="btn-main" onclick="startAuth()">NEXT</button>
+                <button class="btn-main" onclick="window.startAuth()">NEXT</button>
             </div>
             <div id="auth-step-2" class="hidden">
-                <p>Add to Bio:</p>
-                <div id="auth-code" style="color:var(--accent); font-size:24px; font-weight:bold; margin:15px 0;"></div>
-                <button class="btn-main" onclick="verifyAuth()">VERIFY</button>
+                <p>Add to Bio: <b id="auth-code" style="color:var(--accent);"></b></p>
+                <button class="btn-main" onclick="window.verifyAuth()">VERIFY</button>
             </div>
         </div>
     </div>
 
     <script>
-        // REPLACE WITH YOUR ACTUAL RENDER URL
         const socket = io("https://bgsi-infinity.onrender.com");
-        
         let me = JSON.parse(localStorage.getItem('user_session')) || null;
         let authTemp = {};
 
         function showTab(t) {
             document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
             document.getElementById('tab-'+t).classList.remove('hidden');
-            document.getElementById('btn-'+t).classList.add('active');
         }
 
-        // --- AUTH FUNCTIONS ---
-        window.startAuth = function() {
-            const user = document.getElementById('login-user').value;
-            const id = document.getElementById('login-id').value;
-            if(!user || !id) return alert("Fill all fields");
-            
-            authTemp = { 
-                username: user, 
-                userId: id, 
-                code: "BGS-" + Math.floor(Math.random()*9999) 
-            };
-            
+        window.startAuth = () => {
+            authTemp = { username: document.getElementById('login-user').value, userId: document.getElementById('login-id').value, code: "BGS-"+Math.floor(Math.random()*9999) };
             document.getElementById('auth-code').innerText = authTemp.code;
             document.getElementById('auth-step-1').classList.add('hidden');
             document.getElementById('auth-step-2').classList.remove('hidden');
         };
 
-        window.verifyAuth = async function() {
-            try {
-                const res = await fetch("/api/verify-bio", { 
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify({ ...authTemp, expectedCode: authTemp.code }) 
-                });
-                const d = await res.json();
-                if(d.success) {
-                    const pfpRes = await fetch("/api/roblox-pfp/" + authTemp.userId);
-                    const pfpData = await pfpRes.json();
-                    me = { ...d.data, userId: authTemp.userId, pfp: pfpData.pfpUrl };
-                    localStorage.setItem('user_session', JSON.stringify(me));
-                    location.reload();
-                } else {
-                    alert(d.message);
-                }
-            } catch(e) {
-                alert("Connection Error. Try again.");
+        window.verifyAuth = async () => {
+            const res = await fetch("/api/verify-bio", { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({...authTemp, expectedCode: authTemp.code}) });
+            const d = await res.json();
+            if(d.success) {
+                const pfp = await fetch("/api/roblox-pfp/"+authTemp.userId).then(r=>r.json());
+                me = { ...d.data, userId: authTemp.userId, pfp: pfp.pfpUrl };
+                localStorage.setItem('user_session', JSON.stringify(me));
+                location.reload();
             }
         };
 
-        // --- CLICKER ---
-        window.handleGemClick = function() { 
-            socket.emit('gem_click', { userId: me.userId }); 
-        };
+        async function loadLeaderboard() {
+            const res = await fetch("/api/leaderboard");
+            const top = await res.json();
+            const order = [top[1], top[0], top[2]].filter(p => p);
+            const colors = ["#c0c0c0", "#ffd700", "#cd7f32"];
+            document.getElementById('podium').innerHTML = order.map((p, i) => `
+                <div style="text-align:center;">
+                    <div style="font-size:10px;">${p.username}</div>
+                    <div style="background:${colors[i] || '#222'}; width:70px; height:${p.rank===1?'120px':p.rank===2?'90px':'70px'}; border-radius:5px 5px 0 0; color:#000; font-weight:bold; display:flex; flex-direction:column; justify-content:center;">
+                        #${p.rank}<br><span style="font-size:9px;">${p.wagered}</span>
+                    </div>
+                </div>`).join('');
+        }
 
-        socket.on('update_click_value', v => {
-            document.getElementById('click-val').innerText = `+${v} per click`;
-        });
+        window.handleGemClick = () => socket.emit('gem_click', { userId: me.userId });
+        window.createFlip = () => socket.emit('create_flip', { userId: me.userId, username: me.username, pfp: me.pfp, amount: parseInt(document.getElementById('bet-amt').value), side: document.getElementById('bet-side').value });
+        window.sendChat = () => { socket.emit('send_message', { userId: me.userId, username: me.username, text: document.getElementById('chat-in').value }); document.getElementById('chat-in').value = ''; };
 
-        // --- COINFLIP ---
-        window.createFlip = function() { 
-            const amt = parseInt(document.getElementById('bet-amt').value);
-            if(!amt || amt <= 0) return alert("Invalid amount");
-            socket.emit('create_flip', { 
-                userId: me.userId, 
-                username: me.username, 
-                pfp: me.pfp, 
-                amount: amt, 
-                side: document.getElementById('bet-side').value 
-            }); 
-        };
+        socket.on('update_balance', d => { if(me && d.userId === me.userId) { document.getElementById('bal-text').innerText = d.newBalance.toLocaleString(); document.getElementById('wagered-text').innerText = d.wagered.toLocaleString(); } });
+        socket.on('new_message', m => { const d = document.createElement('div'); d.className = 'msg '+(m.role==='OWNER'?'msg-owner':''); d.innerHTML = `<b>${m.username}:</b> ${m.text}`; document.getElementById('chat-msgs').appendChild(d); document.getElementById('chat-msgs').scrollTop = 9999; });
+        socket.on('list_flips', f => { document.getElementById('flip-list').innerHTML = f.map(g => `<div style="background:var(--card); padding:10px; margin-bottom:5px; display:flex; justify-content:space-between;"><span>${g.creator.username}: ${g.creator.amount}</span> <button onclick="socket.emit('join_flip', {gameId:${g.id}, userId:'${me.userId}'})">JOIN</button></div>`).join(''); });
 
-        // --- ADMIN ---
-        window.adminGive = async function() { 
-            await fetch("/api/admin/give", { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ 
-                    adminId: me.userId, 
-                    targetId: document.getElementById('admin-target').value, 
-                    amount: document.getElementById('admin-qty').value 
-                }) 
-            }); 
-            alert("Sent!"); 
-        };
-
-        window.adminAnnounce = async function() { 
-            await fetch("/api/admin/announce", { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ 
-                    adminId: me.userId, 
-                    message: document.getElementById('admin-ann').value 
-                }) 
-            }); 
-        };
-
-        // --- SOCKET EVENTS ---
-        socket.on('update_balance', d => { 
-            if(me && d.userId === me.userId) { 
-                me.balance = d.newBalance; 
-                document.getElementById('bal-text').innerText = d.newBalance.toLocaleString(); 
-                document.getElementById('lvl-text').innerText = Math.floor(Math.sqrt(me.wagered/100))+1; 
-            } 
-        });
-
-        socket.on('list_flips', f => { 
-            document.getElementById('flip-list').innerHTML = f.map(g => `
-                <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:5px; display:flex; justify-content:space-between; align-items:center;">
-                    <span><b>${g.creator.username}</b>: ${g.creator.amount} Gems</span> 
-                    <button class="btn-main" style="width:auto; padding:5px 15px;" onclick="${g.creator.userId === me.userId ? `socket.emit('cancel_flip', ${g.id})` : `socket.emit('join_flip', {gameId: ${g.id}, userId: '${me.userId}'})`}">
-                        ${g.creator.userId === me.userId ? 'CANCEL' : 'JOIN'}
-                    </button>
-                </div>`).join(''); 
-        });
-
-        window.sendChat = function() { 
-            const val = document.getElementById('chat-in').value;
-            if(!val) return;
-            socket.emit('send_message', { userId: me.userId, username: me.username, text: val }); 
-            document.getElementById('chat-in').value = ''; 
-        };
-
-        socket.on('new_message', m => { 
-            const d = document.createElement('div'); 
-            d.className = 'msg ' + (m.role==='OWNER'?'msg-owner':''); 
-            d.innerHTML = `<b>${m.username}:</b> ${m.text}`; 
-            document.getElementById('chat-msgs').appendChild(d); 
-            document.getElementById('chat-msgs').scrollTop = 9999; 
-        });
-
-        socket.on('flip_results', d => {
-            const over = document.getElementById('game-overlay');
-            document.getElementById('anim-p1').src = d.creatorPfp;
-            document.getElementById('anim-p2').src = d.joinerPfp;
-            over.style.display = 'flex';
-            document.getElementById('coin-obj').classList.add('spinning');
-            setTimeout(() => {
-                document.getElementById('coin-obj').classList.remove('spinning');
-                document.getElementById('coin-obj').innerText = d.resultSide[0];
-                document.getElementById('anim-winner').innerText = d.winnerName + " WON!";
-                setTimeout(() => {
-                    over.style.display = 'none';
-                    document.getElementById('anim-winner').innerText = "FLIPPING...";
-                }, 3000);
-            }, 2000);
-        });
-
-        // Initialize session
-        if(me) { 
-            document.getElementById('auth-overlay').style.display='none'; 
-            document.getElementById('nav-user').innerText = me.username; 
-            document.getElementById('nav-pfp').src = me.pfp; 
-            if(me.userId === "7957630713") document.getElementById('nav-admin').classList.remove('hidden'); 
-            socket.emit('join', me.userId); 
+        if(me) {
+            document.getElementById('auth-overlay').style.display='none';
+            document.getElementById('nav-user').innerText = me.username;
+            document.getElementById('nav-pfp').src = me.pfp;
+            if(me.userId === OWNER_ID) document.getElementById('nav-admin').classList.remove('hidden');
+            socket.emit('join', me.userId);
+            loadLeaderboard();
         }
     </script>
 </body>
