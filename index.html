@@ -20,12 +20,8 @@
         .msg { background: #181818; padding: 8px; border-radius: 8px; }
         .msg-owner { border-left: 3px solid var(--owner); color: var(--owner); }
         .hidden { display: none !important; }
-        
-        /* Clicker Visuals */
         #click-circle { width: 180px; height: 180px; background: radial-gradient(circle, var(--accent) 0%, #000 100%); border-radius: 50%; margin: 40px auto; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 50px; border: 4px solid #1a1a1a; transition: 0.1s; user-select: none; }
         #click-circle:active { transform: scale(0.9); }
-
-        /* Animation Overlay */
         #game-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: none; align-items: center; justify-content: center; flex-direction: column; }
         .coin-visual { width: 100px; height: 100px; background: #ffd700; border-radius: 50%; border: 6px solid #b8860b; display: flex; align-items: center; justify-content: center; font-size: 40px; color: #000; font-weight: 900; margin: 0 40px; }
         .spinning { animation: spin 0.1s linear infinite; }
@@ -97,7 +93,7 @@
         </div>
     </div>
 
-    <div id="auth-overlay" class="modal-overlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:99999; display:flex; align-items:center; justify-content:center;">
+    <div id="auth-overlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:99999; display:flex; align-items:center; justify-content:center;">
         <div style="background:var(--card); padding:30px; border-radius:15px; width:300px; text-align:center; border:1px solid var(--border);">
             <h2>Login</h2>
             <div id="auth-step-1">
@@ -114,7 +110,9 @@
     </div>
 
     <script>
-        const socket = io("https://bgsi-infinity.onrender.com"); // REPLACE WITH YOUR RENDER URL
+        // REPLACE WITH YOUR ACTUAL RENDER URL
+        const socket = io("https://bgsi-infinity.onrender.com");
+        
         let me = JSON.parse(localStorage.getItem('user_session')) || null;
         let authTemp = {};
 
@@ -125,30 +123,126 @@
             document.getElementById('btn-'+t).classList.add('active');
         }
 
-        // --- AUTH ---
-        function startAuth() {
-            authTemp = { username: document.getElementById('login-user').value, userId: document.getElementById('login-id').value, code: "BGS-"+Math.floor(Math.random()*9999) };
+        // --- AUTH FUNCTIONS ---
+        window.startAuth = function() {
+            const user = document.getElementById('login-user').value;
+            const id = document.getElementById('login-id').value;
+            if(!user || !id) return alert("Fill all fields");
+            
+            authTemp = { 
+                username: user, 
+                userId: id, 
+                code: "BGS-" + Math.floor(Math.random()*9999) 
+            };
+            
             document.getElementById('auth-code').innerText = authTemp.code;
             document.getElementById('auth-step-1').classList.add('hidden');
             document.getElementById('auth-step-2').classList.remove('hidden');
-        }
-        async function verifyAuth() {
-            const res = await fetch("/api/verify-bio", { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ...authTemp, expectedCode: authTemp.code }) });
-            const d = await res.json();
-            if(d.success) {
-                const pfp = await fetch("/api/roblox-pfp/"+authTemp.userId).then(r=>r.json());
-                me = { ...d.data, userId: authTemp.userId, pfp: pfp.pfpUrl };
-                localStorage.setItem('user_session', JSON.stringify(me));
-                location.reload();
-            } else alert(d.message);
-        }
+        };
+
+        window.verifyAuth = async function() {
+            try {
+                const res = await fetch("/api/verify-bio", { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({ ...authTemp, expectedCode: authTemp.code }) 
+                });
+                const d = await res.json();
+                if(d.success) {
+                    const pfpRes = await fetch("/api/roblox-pfp/" + authTemp.userId);
+                    const pfpData = await pfpRes.json();
+                    me = { ...d.data, userId: authTemp.userId, pfp: pfpData.pfpUrl };
+                    localStorage.setItem('user_session', JSON.stringify(me));
+                    location.reload();
+                } else {
+                    alert(d.message);
+                }
+            } catch(e) {
+                alert("Connection Error. Try again.");
+            }
+        };
 
         // --- CLICKER ---
-        function handleGemClick() { socket.emit('gem_click', { userId: me.userId }); }
-        socket.on('update_click_value', v => document.getElementById('click-val').innerText = `+${v} per click`);
+        window.handleGemClick = function() { 
+            socket.emit('gem_click', { userId: me.userId }); 
+        };
 
-        // --- GAME ---
-        function createFlip() { socket.emit('create_flip', { userId: me.userId, username: me.username, pfp: me.pfp, amount: parseInt(document.getElementById('bet-amt').value), side: document.getElementById('bet-side').value }); }
+        socket.on('update_click_value', v => {
+            document.getElementById('click-val').innerText = `+${v} per click`;
+        });
+
+        // --- COINFLIP ---
+        window.createFlip = function() { 
+            const amt = parseInt(document.getElementById('bet-amt').value);
+            if(!amt || amt <= 0) return alert("Invalid amount");
+            socket.emit('create_flip', { 
+                userId: me.userId, 
+                username: me.username, 
+                pfp: me.pfp, 
+                amount: amt, 
+                side: document.getElementById('bet-side').value 
+            }); 
+        };
+
+        // --- ADMIN ---
+        window.adminGive = async function() { 
+            await fetch("/api/admin/give", { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ 
+                    adminId: me.userId, 
+                    targetId: document.getElementById('admin-target').value, 
+                    amount: document.getElementById('admin-qty').value 
+                }) 
+            }); 
+            alert("Sent!"); 
+        };
+
+        window.adminAnnounce = async function() { 
+            await fetch("/api/admin/announce", { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ 
+                    adminId: me.userId, 
+                    message: document.getElementById('admin-ann').value 
+                }) 
+            }); 
+        };
+
+        // --- SOCKET EVENTS ---
+        socket.on('update_balance', d => { 
+            if(me && d.userId === me.userId) { 
+                me.balance = d.newBalance; 
+                document.getElementById('bal-text').innerText = d.newBalance.toLocaleString(); 
+                document.getElementById('lvl-text').innerText = Math.floor(Math.sqrt(me.wagered/100))+1; 
+            } 
+        });
+
+        socket.on('list_flips', f => { 
+            document.getElementById('flip-list').innerHTML = f.map(g => `
+                <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:5px; display:flex; justify-content:space-between; align-items:center;">
+                    <span><b>${g.creator.username}</b>: ${g.creator.amount} Gems</span> 
+                    <button class="btn-main" style="width:auto; padding:5px 15px;" onclick="${g.creator.userId === me.userId ? `socket.emit('cancel_flip', ${g.id})` : `socket.emit('join_flip', {gameId: ${g.id}, userId: '${me.userId}'})`}">
+                        ${g.creator.userId === me.userId ? 'CANCEL' : 'JOIN'}
+                    </button>
+                </div>`).join(''); 
+        });
+
+        window.sendChat = function() { 
+            const val = document.getElementById('chat-in').value;
+            if(!val) return;
+            socket.emit('send_message', { userId: me.userId, username: me.username, text: val }); 
+            document.getElementById('chat-in').value = ''; 
+        };
+
+        socket.on('new_message', m => { 
+            const d = document.createElement('div'); 
+            d.className = 'msg ' + (m.role==='OWNER'?'msg-owner':''); 
+            d.innerHTML = `<b>${m.username}:</b> ${m.text}`; 
+            document.getElementById('chat-msgs').appendChild(d); 
+            document.getElementById('chat-msgs').scrollTop = 9999; 
+        });
+
         socket.on('flip_results', d => {
             const over = document.getElementById('game-overlay');
             document.getElementById('anim-p1').src = d.creatorPfp;
@@ -159,22 +253,21 @@
                 document.getElementById('coin-obj').classList.remove('spinning');
                 document.getElementById('coin-obj').innerText = d.resultSide[0];
                 document.getElementById('anim-winner').innerText = d.winnerName + " WON!";
-                setTimeout(() => over.style.display = 'none', 3000);
+                setTimeout(() => {
+                    over.style.display = 'none';
+                    document.getElementById('anim-winner').innerText = "FLIPPING...";
+                }, 3000);
             }, 2000);
         });
 
-        // --- ADMIN ---
-        async function adminGive() { await fetch("/api/admin/give", { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ adminId: me.userId, targetId: document.getElementById('admin-target').value, amount: document.getElementById('admin-qty').value }) }); alert("Sent!"); }
-        async function adminAnnounce() { await fetch("/api/admin/announce", { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ adminId: me.userId, message: document.getElementById('admin-ann').value }) }); }
-
-        // --- CORE ---
-        socket.on('update_balance', d => { if(d.userId === me.userId) { me.balance = d.newBalance; document.getElementById('bal-text').innerText = d.newBalance.toLocaleString(); document.getElementById('lvl-text').innerText = Math.floor(Math.sqrt(me.wagered/100))+1; } });
-        socket.on('list_flips', f => { document.getElementById('flip-list').innerHTML = f.map(g => `<div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:5px; display:flex; justify-content:space-between;"><span>${g.creator.username}: ${g.creator.amount}</span> <button onclick="${g.creator.userId === me.userId ? `socket.emit('cancel_flip', ${g.id})` : `socket.emit('join_flip', {gameId: ${g.id}, userId: '${me.userId}'})"}">${g.creator.userId === me.userId ? 'CANCEL' : 'JOIN'}</button></div>`).join(''); });
-        function sendChat() { socket.emit('send_message', { userId: me.userId, username: me.username, text: document.getElementById('chat-in').value }); document.getElementById('chat-in').value = ''; }
-        socket.on('new_message', m => { const d = document.createElement('div'); d.className = 'msg ' + (m.role==='OWNER'?'msg-owner':''); d.innerHTML = `<b>${m.username}:</b> ${m.text}`; document.getElementById('chat-msgs').appendChild(d); document.getElementById('chat-msgs').scrollTop = 9999; });
-
-        if(me) { document.getElementById('auth-overlay').style.display='none'; document.getElementById('nav-user').innerText = me.username; document.getElementById('nav-pfp').src = me.pfp; if(me.userId === "7957630713") document.getElementById('nav-admin').classList.remove('hidden'); socket.emit('join', me.userId); }
+        // Initialize session
+        if(me) { 
+            document.getElementById('auth-overlay').style.display='none'; 
+            document.getElementById('nav-user').innerText = me.username; 
+            document.getElementById('nav-pfp').src = me.pfp; 
+            if(me.userId === "7957630713") document.getElementById('nav-admin').classList.remove('hidden'); 
+            socket.emit('join', me.userId); 
+        }
     </script>
 </body>
 </html>
-
